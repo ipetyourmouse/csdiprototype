@@ -158,7 +158,7 @@
 
           map.setFeatureState(
             {
-              source: 'earthquakes',
+              source: 'parks',
               id: quakeID
             },
             {
@@ -169,11 +169,11 @@
 
         // When the mouse leaves the earthquakes-viz layer, update the
         // feature state of the previously hovered feature
-        map.on('mouseleave', 'earthquakes-viz', () => {
+        map.on('mouseleave', 'parks-viz', () => {
           if (quakeID) {
             map.setFeatureState(
               {
-                source: 'earthquakes',
+                source: 'parks',
                 id: quakeID
               },
               {
