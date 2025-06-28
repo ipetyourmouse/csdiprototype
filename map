@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Create interactive hover effects with Mapbox GL JS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+    <link
+      href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      #map {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <script>
+      mapboxgl.accessToken = 'pk.eyJ1IjoibmV3aXNsYW5kMTIyMyIsImEiOiJjamJqaG5jb3Y0MHVpMnFxZ3IzN3NhbGwzIn0.giv88MrlUsX2WznylrLvwA';
+      const map = new mapboxgl.Map({
+        container: 'map', // Specify the container ID
+        style:
+          'mapbox://styles/newisland1223/clzig8nrs00l501qqa3yxfgzm', // Specify which map style to use
+        center: [114.134, 22.495], // Specify the starting position [lng, lat]
+        zoom: 13.23 // Specify the starting zoom
+      });
+    </script>
+  </body>
+</html>
