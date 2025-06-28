@@ -71,17 +71,17 @@
 
       map.on('load', () => {
         // When the map loads, add the data from the USGS earthquake API as a source
-        map.addSource('earthquakes', {
+        map.addSource('parks', {
           'type': 'geojson',
-          'data': `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&eventtype=earthquake&minmagnitude=1&starttime=${sevenDaysAgo}`, // Use the sevenDaysAgo variable to only retrieve quakes from the past week
+          'data': 'https://portal.csdi.gov.hk/geoportal/?lang=en&datasetId=lcsd_rcd_1629267205215_19292',
           'generateId': true // This ensures that all features have unique IDs
         });
 
         // Add earthquakes as a layer and style it
         map.addLayer({
-          'id': 'earthquakes-viz',
+          'id': 'park-viz',
           'type': 'circle',
-          'source': 'earthquakes',
+          'source': 'parks',
           'paint': {
             // The feature-state dependent circle-radius expression will render
             // the radius size according to its magnitude when
@@ -89,31 +89,7 @@
             'circle-radius': [
               'case',
               ['boolean', ['feature-state', 'hover'], false],
-              [
-                'interpolate',
-                ['linear'],
-                ['get', 'mag'],
-                1,
-                8,
-                1.5,
-                10,
-                2,
-                12,
-                2.5,
-                14,
-                3,
-                16,
-                3.5,
-                18,
-                4.5,
-                20,
-                6.5,
-                22,
-                8.5,
-                24,
-                10.5,
-                26
-              ],
+              10,
               5
             ],
             'circle-stroke-color': '#000',
@@ -127,26 +103,26 @@
               [
                 'interpolate',
                 ['linear'],
-                ['get', 'mag'],
-                1,
+                ['get', 'GeometryLatitude'],
+                22.05,
                 '#fff7ec',
-                1.5,
+                22.1,
                 '#fee8c8',
-                2,
+                22.15,
                 '#fdd49e',
-                2.5,
+                22.2,
                 '#fdbb84',
-                3,
+                22.25,
                 '#fc8d59',
-                3.5,
+                22.3,
                 '#ef6548',
-                4.5,
+                22.35,
                 '#d7301f',
-                6.5,
+                22.4,
                 '#b30000',
-                8.5,
+                22.45,
                 '#7f0000',
-                10.5,
+                22.5,
                 '#000'
               ],
               '#000'
@@ -156,7 +132,7 @@
 
         let quakeID = null;
 
-        map.on('mousemove', 'earthquakes-viz', (event) => {
+        map.on('mousemove', 'parks-viz', (event) => {
           map.getCanvas().style.cursor = 'pointer';
           // Set variables equal to the current feature's magnitude, location, and time
           const quakeMagnitude = event.features[0].properties.mag;
@@ -173,7 +149,7 @@
           // feature state for the feature under the mouse
           if (quakeID) {
             map.removeFeatureState({
-              source: 'earthquakes',
+              source: 'parks',
               id: quakeID
             });
           }
