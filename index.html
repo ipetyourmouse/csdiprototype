@@ -462,7 +462,7 @@
 
       map.on('load', async () => {
           // Load initial set (parks)
-          await loadLocationSet('parks');
+          loadLocationSet('parks');
   
           // Add event listener for radio buttons
           const radioButtons = document.querySelectorAll('input[name="location-set"]');
