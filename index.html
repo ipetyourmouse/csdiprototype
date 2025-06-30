@@ -21,6 +21,19 @@
   </head>
   <body>
     <div id="map"></div>
+    <div class="map-overlay top">
+        <div class="map-overlay-inner">
+            <h2>Distance covered in minutes</h2>
+            <label id="maxMinutes"></label>
+            <input id="slider" type="range" min="0" max="30" step="3" value="15">
+        </div>
+        <div class="map-overlay-inner">
+            <div id="legend" class="legend">
+                <div class="bar"></div>
+                <div>Magnitude (m)</div>
+            </div>
+        </div>
+    </div>
     <script>
       mapboxgl.accessToken = "pk.eyJ1IjoibmV3aXNsYW5kMTIyMyIsImEiOiJjamJqaG5jb3Y0MHVpMnFxZ3IzN3NhbGwzIn0.giv88MrlUsX2WznylrLvwA";
       const map = new mapboxgl.Map({
@@ -133,6 +146,35 @@
               })
                   .setLngLat(loc.coords)
                   .addTo(map);
+
+              // Add hover events
+              const markerElement = marker.getElement();
+              markerElement.style.cursor = 'pointer';
+              markerElement.addEventListener('mouseover', () => {
+                  // Show tab bar with marker name
+                  const tabBar = document.getElementById('tab-bar');
+                  tabBar.textContent = loc.name;
+                  tabBar.style.display = 'block';
+  
+                  // Hide all isochrones except the current one
+                  locations.forEach((otherLoc) => {
+                      map.setLayoutProperty(
+                          `isoLayer-${otherLoc.name}`,
+                          'visibility',
+                          otherLoc.name === loc.name ? 'visible' : 'none'
+                      );
+                  });
+              });
+  
+              markerElement.addEventListener('mouseout', () => {
+                  // Hide tab bar
+                  document.getElementById('tab-bar').style.display = 'none';
+  
+                  // Show all isochrones
+                  locations.forEach((otherLoc) => {
+                      map.setLayoutProperty(`isoLayer-${otherLoc.name}`, 'visibility', 'visible');
+                  });
+              });
           }
       });
     </script>
