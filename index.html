@@ -157,16 +157,15 @@
               });
       
               // Add marker for the location
-              const markerElement = document.createElement('div');
               const marker = new mapboxgl.Marker({
-                element: 'custom-marker'
-                scale: 0.5
+                scale: 0.5,
                 color: colorForOpenSpace
               })
                   .setLngLat(loc.coords)
                   .addTo(map);
 
-              // Add hover events     X const markerElement = marker.getElement();
+              // Add hover events
+              const markerElement = marker.getElement();
               markerElement.style.cursor = 'pointer';
               markerElement.addEventListener('mouseover', () => {
                   // Show tab bar with marker name
