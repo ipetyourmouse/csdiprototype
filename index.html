@@ -17,6 +17,19 @@
       body {margin: 0; padding: 0;}
       #map {position: absolute; top: 0; bottom: 0; width: 100%;}
       .box {line-height: 0.9;}
+      #tab-bar {
+          position: absolute;
+          top: 10px;
+          left: 10px;
+          background-color: rgba(255, 255, 255, 0.9);
+          padding: 10px;
+          border-radius: 5px;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+          font-family: Arial, sans-serif;
+          font-size: 14px;
+          display: none;
+          z-index: 1;
+      }
     </style>
   </head>
   <body>
@@ -142,7 +155,7 @@
               });
       
               // Add marker for the location
-              new mapboxgl.Marker({
+              const marker = new mapboxgl.Marker({
                 scale: 0.5
               })
                   .setLngLat(loc.coords)
