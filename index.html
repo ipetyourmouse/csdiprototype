@@ -33,7 +33,11 @@
         { name: 'Central', coords: [114.1586, 22.2799] },
         { name: 'Mong Kok', coords: [114.1696, 22.3193] }
       ];
-      async function getIsochrone(lon, lat, profile = 'driving', minutes = [5, 10, 15]) {
+
+      const modeOfTravel = 'driving'
+      const chosenMinutes = [10, 20, 40]
+      
+      async function getIsochrone(lon, lat, profile = modeOfTravel, minutes = chosenMinutes) {
         const urlBase = 'https://api.mapbox.com/isochrone/v1/mapbox/';
         const query = await fetch(
             `${urlBase}${profile}/${lon},${lat}?contours_minutes=${minutes.join(',')}&polygons=true&access_token=${mapboxgl.accessToken}`,
@@ -48,7 +52,7 @@
           // Loop through locations
           for (let i = 0; i < locations.length; i++) {
               const loc = locations[i];
-              const data = await getIsochrone(loc.coords[0], loc.coords[1], 'walking', [5, 10, 15]);
+              const data = await getIsochrone(loc.coords[0], loc.coords[1], modeOfTravel, chosenMinutes);
       
               // Add GeoJSON source
               map.addSource(`iso-${loc.name}`, {
