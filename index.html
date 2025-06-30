@@ -29,22 +29,51 @@
         center: [114.141, 22.495],
         zoom: 13.4
       });
-
-      let hoveredPointId = null;
-      map.on('load', (event) => {
-        map.addSource('open-space', {
-          type: 'vector',
-          url:  'mapbox://newisland1223.cmcgebcfc1q5k1mpiyvm5ia8x-1j4p8'
-        });
-        map.addLayer({
-          id:     'open-space-data',
-          source: 'csdi_os',
-          type:   'circle',
-          layout: {
-            'circle-color': '#0000FF'
+      const locations = [
+        { name: 'Central', coords: [114.1586, 22.2799] },
+        { name: 'Mong Kok', coords: [114.1696, 22.3193] }
+      ];
+      async function getIsochrone(lon, lat, profile = 'walking', minutes = [5, 10, 15]) {
+        const urlBase = 'https://api.mapbox.com/isochrone/v1/mapbox/';
+        const query = await fetch(
+            `${urlBase}${profile}/${lon},${lat}?contours_minutes=${minutes.join(',')}&polygons=true&access_token=${mapboxgl.accessToken}`,
+            { method: 'GET' }
+        );
+        return await query.json();
+      }
+      map.on('load', async () => {
+          // Colors for different locations
+          const colors = ['#5a3fc0', '#04e813']; // Purple for Central, Green for Mong Kok
+      
+          // Loop through locations
+          for (let i = 0; i < locations.length; i++) {
+              const loc = locations[i];
+              const data = await getIsochrone(loc.coords[0], loc.coords[1], 'walking', [5, 10, 15]);
+      
+              // Add GeoJSON source
+              map.addSource(`iso-${loc.name}`, {
+                  type: 'geojson',
+                  data: data
+              });
+      
+              // Add fill layer for isochrones
+              map.addLayer({
+                  id: `isoLayer-${loc.name}`,
+                  type: 'fill',
+                  source: `iso-${loc.name}`,
+                  layout: {},
+                  paint: {
+                      'fill-color': colors[i],
+                      'fill-opacity': 0.3 // Transparency to see overlaps
+                  }
+              });
+      
+              // Add marker for the location
+              new mapboxgl.Marker()
+                  .setLngLat(loc.coords)
+                  .addTo(map);
           }
-        });
-      })
+      });
     </script>
   </body>
 </html>
