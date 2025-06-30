@@ -177,13 +177,7 @@
                   markerElement.classList.add('hovered');
   
                   // Change isochrone color
-                  map.setPaintProperty(`isoLayer-${loc.name}`, 'fill-color', hoverColor);
-
-                  // Change marker color by adding hover class
-                  markerElement.classList.add('hovered');
-  
-                  // Change isochrone color
-                  map.setPaintProperty(`isoLayer-${loc.name}`, 'fill-color', hoverColor);
+                  map.setPaintProperty(`isoLayer-${loc.name}`, 'fill-color', colorHovered);
   
                   // Hide all isochrones except the current one
                   locations.forEach((otherLoc) => {
