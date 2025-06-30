@@ -17,6 +17,18 @@
       body {margin: 0; padding: 0;}
       #map {position: absolute; top: 0; bottom: 0; width: 100%;}
       .box {line-height: 0.9;}
+      #control-panel {
+          position: absolute;
+          top: 10px;
+          left: 10px;
+          background-color: rgba(255, 255, 255, 0.9);
+          padding: 10px;
+          border-radius: 5px;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+          font-family: Arial, sans-serif;
+          font-size: 14px;
+          z-index: 1;
+      }
       #tab-bar {
           position: absolute;
           top: 10px;
@@ -34,20 +46,14 @@
   </head>
   <body>
     <div id="map"></div>
-    <div class="map-overlay top">
-        <div class="map-overlay-inner">
-            <h2>Distance covered in minutes</h2>
-            <label id="maxMinutes"></label>
-            <input id="slider" type="range" min="0" max="30" step="3" value="15">
-        </div>
-        <div class="map-overlay-inner">
-            <div id="legend" class="legend">
-                <div class="bar"></div>
-                <div>Magnitude (m)</div>
-            </div>
-        </div>
-        <div id='tab-bar'></div>
+    <div id='control-panel'>
+        <form>
+            <label><input type="radio" name="location-set" value="parks" checked> Open space</label><br>
+            <label><input type="radio" name="location-set" value="leisure"> Leisure facilities</label><br>
+            <label><input type="radio" name="location-set" value="malls"> Shopping centres</label>
+        </form>
     </div>
+    <div id='tab-bar'></div>
     <script>
       mapboxgl.accessToken = "pk.eyJ1IjoibmV3aXNsYW5kMTIyMyIsImEiOiJjamJqaG5jb3Y0MHVpMnFxZ3IzN3NhbGwzIn0.giv88MrlUsX2WznylrLvwA";
       const map = new mapboxgl.Map({
@@ -56,65 +62,125 @@
         center: [114.141, 22.495], // Fanling
         zoom: 13.4
       });
-      const locations = [
-        { name: 'Cheung Lung Wai Estate', coords: [114.12350000000004, 22.49490000000003] },
-        { name: 'Ching Ho Estate', coords: [114.12580000000004, 22.493100000000027] },
-        { name: 'Choi Yuen Estate', coords: [114.12580000000004, 22.501700000000028] },
-        { name: 'Fai Ming Estate', coords: [114.13610000000006, 22.481100000000023] },
-        { name: 'Ka Fuk Estate', coords: [114.13490000000002, 22.49270000000007] },
-        { name: 'Po Shek Wu Estate', coords: [114.12430000000006, 22.503300000000024] },
-        { name: 'Wah Sum Estate', coords: [114.14320000000008, 22.48580000000004] },
-        { name: 'Grandeur Terrace', coords: [114.00240000000008, 22.468800000000044] },
-        { name: 'Long Ching Estate', coords: [114.0286000000001, 22.44650000000007] },
-        { name: 'Shui Pin Wai Estate', coords: [114.02030000000002, 22.446000000000023] },
-        { name: 'Tin Chak Estate', coords: [113.99750000000006, 22.467300000000023] },
-        { name: 'Tin Ching Estate', coords: [114.00350000000005, 22.462900000000047] },
-        { name: 'Tin Heng Estate', coords: [113.99890000000003, 22.470600000000047] },
-        { name: 'Tin Shui (I) Estate, Tin Shui (II) Estate', coords: [113.99868400000004, 22.455341000000036] },
-        { name: 'Tin Tsz Estate', coords: [114.00740000000008, 22.452600000000075] },
-        { name: 'Tin Wah Estate', coords: [113.9955000000001, 22.46070000000003] },
-        { name: 'Tin Yan Estate', coords: [113.9960000000001, 22.46440000000007] },
-        { name: 'Tin Yat Estate', coords: [114.00020000000006, 22.46670000000006] },
-        { name: 'Tin Yiu (I) Estate, Tin Yiu (II) Estate', coords: [114.00462300000004, 22.451112000000023] },
-        { name: 'Tin Yuet Estate', coords: [113.99940000000004, 22.46270000000004] },
-        { name: 'Long Ping Estate', coords: [114.02280000000007, 22.449100000000044] },
-        { name: 'Cheung Wah Estate', coords: [114.14190000000008, 22.492200000000025] },
-        { name: 'Tai Ping Estate', coords: [114.12670000000004, 22.498000000000047] },
-        { name: 'Tin Ping Estate', coords: [114.1323000000001, 22.50350000000003] },
-        { name: 'Wah Ming Estate', coords: [114.14020000000004, 22.484500000000025] },
-        { name: 'Cheong Shing Court', coords: [114.1382000000001, 22.483900000000062] },
-        { name: 'Choi Po Court', coords: [114.12430000000006, 22.501100000000065] },
-        { name: 'Ka Shing Court', coords: [114.1341000000001, 22.49380000000008] },
-        { name: 'King Shing Court', coords: [114.1409000000001, 22.487700000000075] },
-        { name: 'On Shing Court', coords: [114.13520000000004, 22.502200000000077] },
-        { name: 'Sunningdale Garden', coords: [114.13210000000004, 22.501600000000053] },
-        { name: 'Tsui Lai Garden', coords: [114.12830000000008, 22.50830000000008] },
-        { name: 'Wing Fai Centre', coords: [114.14320000000008, 22.501600000000053] },
-        { name: 'Wing Fok Centre', coords: [114.14040000000011, 22.50130000000007] },
-        { name: 'Yan Shing Court', coords: [114.13920000000007, 22.48720000000003] },
-        { name: 'Yuk Po Court', coords: [114.12830000000008, 22.499900000000025] },
-        { name: 'Yung Shing Court', coords: [114.13800000000003, 22.48280000000005] },
-        { name: 'Fung Ting Court', coords: [114.0322000000001, 22.443100000000072] },
-        { name: 'Ping Yan Court', coords: [114.00350000000005, 22.44560000000007] },
-        { name: 'Tin Chung Court', coords: [114.00030000000004, 22.46070000000003] },
-        { name: 'Tin Fu Court', coords: [113.99940000000004, 22.465100000000064] },
-        { name: 'Tin Lai Court', coords: [114.00800000000004, 22.452900000000056] },
-        { name: 'Tin Oi Court', coords: [113.99790000000009, 22.454000000000065] },
-        { name: 'Tin Shing Court', coords: [114.00220000000002, 22.447500000000048] },
-        { name: 'Tin Yau Court', coords: [114.00610000000006, 22.451900000000023] },
-        { name: 'Wang Fu Court', coords: [114.02820000000008, 22.450800000000072] },
-        { name: 'Ching Tao Court', coords: [114.12880000000008, 22.495300000000043] },
-        { name: 'North District Park', coords: [114.1341113, 22.49892247] },
-        { name: 'The park located east of Fan Kam Road', coords: [114.122099, 22.49502554] },
-        { name: 'Tin Tsz Garden', coords: [114.00853, 22.4520446] },
-        { name: 'Fung Cheung Road Garden', coords: [114.0326723, 22.44439963] },
-        { name: 'Tin Ping Road Garden', coords: [114.1267913, 22.50931355] },
-        { name: 'Tai Tau Leng Sitting-out Area', coords: [114.1232912, 22.50028734] },
-        { name: 'Yat Ming Road Park', coords: [114.1448732, 22.48556901] },
-        { name: 'San Wan Road Sitting-out Area', coords: [114.1364068, 22.49518487] },
-        { name: 'Tin Yip Road Park', coords: [114.0074497, 22.46323409] },
-        { name: 'Tin Shui Wai Park', coords: [114.0034542, 22.45565875] }
-      ];
+      
+      const locationSets = {
+        parks: [
+          { name: 'Cheung Lung Wai Estate', coords: [114.12350000000004, 22.49490000000003] },
+          { name: 'Ching Ho Estate', coords: [114.12580000000004, 22.493100000000027] },
+          { name: 'Choi Yuen Estate', coords: [114.12580000000004, 22.501700000000028] },
+          { name: 'Fai Ming Estate', coords: [114.13610000000006, 22.481100000000023] },
+          { name: 'Ka Fuk Estate', coords: [114.13490000000002, 22.49270000000007] },
+          { name: 'Po Shek Wu Estate', coords: [114.12430000000006, 22.503300000000024] },
+          { name: 'Wah Sum Estate', coords: [114.14320000000008, 22.48580000000004] },
+          { name: 'Grandeur Terrace', coords: [114.00240000000008, 22.468800000000044] },
+          { name: 'Long Ching Estate', coords: [114.0286000000001, 22.44650000000007] },
+          { name: 'Shui Pin Wai Estate', coords: [114.02030000000002, 22.446000000000023] },
+          { name: 'Tin Chak Estate', coords: [113.99750000000006, 22.467300000000023] },
+          { name: 'Tin Ching Estate', coords: [114.00350000000005, 22.462900000000047] },
+          { name: 'Tin Heng Estate', coords: [113.99890000000003, 22.470600000000047] },
+          { name: 'Tin Shui (I) Estate, Tin Shui (II) Estate', coords: [113.99868400000004, 22.455341000000036] },
+          { name: 'Tin Tsz Estate', coords: [114.00740000000008, 22.452600000000075] },
+          { name: 'Tin Wah Estate', coords: [113.9955000000001, 22.46070000000003] },
+          { name: 'Tin Yan Estate', coords: [113.9960000000001, 22.46440000000007] },
+          { name: 'Tin Yat Estate', coords: [114.00020000000006, 22.46670000000006] },
+          { name: 'Tin Yiu (I) Estate, Tin Yiu (II) Estate', coords: [114.00462300000004, 22.451112000000023] },
+          { name: 'Tin Yuet Estate', coords: [113.99940000000004, 22.46270000000004] },
+          { name: 'Long Ping Estate', coords: [114.02280000000007, 22.449100000000044] },
+          { name: 'Cheung Wah Estate', coords: [114.14190000000008, 22.492200000000025] },
+          { name: 'Tai Ping Estate', coords: [114.12670000000004, 22.498000000000047] },
+          { name: 'Tin Ping Estate', coords: [114.1323000000001, 22.50350000000003] },
+          { name: 'Wah Ming Estate', coords: [114.14020000000004, 22.484500000000025] },
+          { name: 'Cheong Shing Court', coords: [114.1382000000001, 22.483900000000062] },
+          { name: 'Choi Po Court', coords: [114.12430000000006, 22.501100000000065] },
+          { name: 'Ka Shing Court', coords: [114.1341000000001, 22.49380000000008] },
+          { name: 'King Shing Court', coords: [114.1409000000001, 22.487700000000075] },
+          { name: 'On Shing Court', coords: [114.13520000000004, 22.502200000000077] },
+          { name: 'Sunningdale Garden', coords: [114.13210000000004, 22.501600000000053] },
+          { name: 'Tsui Lai Garden', coords: [114.12830000000008, 22.50830000000008] },
+          { name: 'Wing Fai Centre', coords: [114.14320000000008, 22.501600000000053] },
+          { name: 'Wing Fok Centre', coords: [114.14040000000011, 22.50130000000007] },
+          { name: 'Yan Shing Court', coords: [114.13920000000007, 22.48720000000003] },
+          { name: 'Yuk Po Court', coords: [114.12830000000008, 22.499900000000025] },
+          { name: 'Yung Shing Court', coords: [114.13800000000003, 22.48280000000005] },
+          { name: 'Fung Ting Court', coords: [114.0322000000001, 22.443100000000072] },
+          { name: 'Ping Yan Court', coords: [114.00350000000005, 22.44560000000007] },
+          { name: 'Tin Chung Court', coords: [114.00030000000004, 22.46070000000003] },
+          { name: 'Tin Fu Court', coords: [113.99940000000004, 22.465100000000064] },
+          { name: 'Tin Lai Court', coords: [114.00800000000004, 22.452900000000056] },
+          { name: 'Tin Oi Court', coords: [113.99790000000009, 22.454000000000065] },
+          { name: 'Tin Shing Court', coords: [114.00220000000002, 22.447500000000048] },
+          { name: 'Tin Yau Court', coords: [114.00610000000006, 22.451900000000023] },
+          { name: 'Wang Fu Court', coords: [114.02820000000008, 22.450800000000072] },
+          { name: 'Ching Tao Court', coords: [114.12880000000008, 22.495300000000043] },
+          { name: 'North District Park', coords: [114.1341113, 22.49892247] },
+          { name: 'The park located east of Fan Kam Road', coords: [114.122099, 22.49502554] },
+          { name: 'Tin Tsz Garden', coords: [114.00853, 22.4520446] },
+          { name: 'Fung Cheung Road Garden', coords: [114.0326723, 22.44439963] },
+          { name: 'Tin Ping Road Garden', coords: [114.1267913, 22.50931355] },
+          { name: 'Tai Tau Leng Sitting-out Area', coords: [114.1232912, 22.50028734] },
+          { name: 'Yat Ming Road Park', coords: [114.1448732, 22.48556901] },
+          { name: 'San Wan Road Sitting-out Area', coords: [114.1364068, 22.49518487] },
+          { name: 'Tin Yip Road Park', coords: [114.0074497, 22.46323409] },
+          { name: 'Tin Shui Wai Park', coords: [114.0034542, 22.45565875] }
+        ],
+        malls: [
+          { name: 'Wing Fok Centre', coords: [114.14155, 22.501105] },
+          { name: 'Yung Shing Shopping Centre', coords: [114.138716, 22.482685] },
+          { name: 'Wing Fai Centre Commercial Complex', coords: [114.142282, 22.501144] },
+          { name: 'Jubilee Plaza', coords: [114.128767, 22.504878] },
+          { name: 'YOHO Mall I', coords: [114.037523, 22.445147] },
+          { name: 'Fanling Centre Shopping Arcade', coords: [114.140813, 22.491121] },
+          { name: '+WOO Phase I', coords: [114.002759, 22.458139] },
+          { name: 'Flora Plaza', coords: [114.14137, 22.485395] },
+          { name: 'Tin Chak Shopping Centre', coords: [113.998668, 22.468407] },
+          { name: 'YOHO Mix', coords: [114.036649, 22.443585] },
+          { name: 'Landmark North 2', coords: [114.121441, 22.504775] },
+          { name: 'Wah Sum Shopping Centre', coords: [114.142085, 22.486689] },
+          { name: 'Tin Ping Square', coords: [114.133622, 22.503342] },
+          { name: 'Tsui Lai Garden Shopping Arcade', coords: [114.129037, 22.507593] },
+          { name: 'Dawning Views Plaza', coords: [114.143718, 22.486898] },
+          { name: 'Spot', coords: [114.128072, 22.503241] },
+          { name: 'Regentville Shopping Centre', coords: [114.143757, 22.500609] },
+          { name: 'Union Plaza Shopping Arcade', coords: [114.141604, 22.499966] },
+          { name: 'Wah Ming Shopping Centre', coords: [114.141083, 22.484051] },
+          { name: 'One Sky Mall', coords: [114.003363, 22.464635] },
+          { name: 'Landmark North', coords: [114.127861, 22.50255] },
+          { name: 'Ka Fuk Shopping Centre', coords: [114.135459, 22.49361] },
+          { name: 'K Plus', coords: [114.028718, 22.441331] },
+          { name: 'Choi Yuen Plaza', coords: [114.126438, 22.500604] },
+          { name: 'Ching Ho Shopping Centre', coords: [114.128187, 22.494335] },
+          { name: 'YOHO Mall II', coords: [114.035116, 22.445496] },
+          { name: '+WOO Phase II', coords: [114.004227, 22.457195] },
+          { name: 'Yuen Long Plaza', coords: [114.023984, 22.444957] },
+          { name: 'Metropolis Plaza', coords: [114.129181, 22.502101] },
+          { name: 'Tin Yan Shopping Centre', coords: [113.996228, 22.462448] },
+          { name: 'Ping Yan Shopping Centre', coords: [114.004262, 22.445932] },
+          { name: 'Cheung Lung Lane', coords: [114.123973, 22.495149] },
+          { name: 'T Town North', coords: [113.997838, 22.462448] },
+          { name: 'Kingswood Richly Plaza', coords: [114.000385, 22.452083] },
+          { name: 'Avon Mall', coords: [114.142756, 22.487748] },
+          { name: 'Tin Yiu Plaza', coords: [114.003535, 22.450664] },
+          { name: 'One North', coords: [114.029467, 22.450794] },
+          { name: 'Long Ping Commercial Complex', coords: [114.023246, 22.450312] },
+          { name: 'Sheung Shui Centre', coords: [114.129859, 22.500943] },
+          { name: 'Citistore', coords: [114.028505, 22.442623] },
+          { name: 'Green Code Plaza', coords: [114.145994, 22.500903] },
+          { name: 'Fanling Town Centre Shopping Arcade', coords: [114.13955, 22.492335] },
+          { name: 'Tin Tsz Shopping Centre', coords: [114.006936, 22.453194] },
+          { name: 'Cheung Wah Shopping Centre', coords: [114.14048, 22.493193] },
+          { name: 'Tin Shing Shopping Centre', coords: [114.002791, 22.448958] },
+          { name: 'Tin Shui Shopping Centre', coords: [113.998425, 22.455951] },
+          { name: 'YOHO Plus', coords: [114.031835, 22.443741] },
+          { name: 'T Town South', coords: [113.997798, 22.461466] },
+          { name: 'Sheung Shui Town Centre Shopping Arcade', coords: [114.131572, 22.501048] },
+          { name: 'Tin Ching Shopping Centre', coords: [114.003436, 22.46245] }
+        ],
+        leisure: [
+
+          // YOU STOPPED HERE.
+          
+        ]
+      };
 
       const modeOfTravel = 'walking'
       const chosenMinutes = [5, 10, 15]
@@ -127,7 +193,27 @@
         );
         return await query.json();
       }
-      map.on('load', async () => {
+
+      function clearMap() {
+          // Remove existing markers
+          currentMarkers.forEach(marker => marker.remove());
+          currentMarkers = [];
+          // Remove existing layers and sources
+          currentLayers.forEach(layerId => {
+              if (map.getLayer(layerId)) map.removeLayer(layerId);
+          });
+          currentSources.forEach(sourceId => {
+              if (map.getSource(sourceId)) map.removeSource(sourceId);
+          });
+          currentLayers = [];
+          currentSources = [];
+          // Hide tab bar
+          document.getElementById('tab-bar').style.display = 'none';
+      }
+
+      async function loadLocationSet(setKey) {
+          clearMap();
+          const locations = locationSets[setKey];
           // Colors for different locations
           const colorHovered = '#FF0000';
         
@@ -189,7 +275,7 @@
                   });
               });
   
-              markerElement.addEventListener('mouseout', () => {
+              markerElement.addEventListener('mouseleave', () => {
                   // Hide tab bar
                   document.getElementById('tab-bar').style.display = 'none';
 
@@ -205,6 +291,21 @@
                   });
               });
           }
+      };
+
+      map.on('load', async () => {
+          // Load initial set (parks)
+          await loadLocationSet('parks');
+  
+          // Add event listener for radio buttons
+          const radioButtons = document.querySelectorAll('input[name="location-set"]');
+          radioButtons.forEach(radio => {
+              radio.addEventListener('change', (e) => {
+                  const setKey = e.target.value;
+                  console.log(`Switching to location set: ${setKey}`);
+                  loadLocationSet(setKey);
+              });
+          });
       });
     </script>
   </body>
