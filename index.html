@@ -352,6 +352,10 @@
       const modeOfTravel = 'walking'
       const chosenMinutes = [5, 10, 15]
       
+      let currentMarkers = [];
+      let currentSources = [];
+      let currentLayers = [];
+      
       async function getIsochrone(lon, lat, profile = modeOfTravel, minutes = chosenMinutes) {
         const urlBase = 'https://api.mapbox.com/isochrone/v1/mapbox/';
         const query = await fetch(
