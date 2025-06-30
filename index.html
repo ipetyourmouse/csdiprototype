@@ -33,7 +33,7 @@
         { name: 'Central', coords: [114.1586, 22.2799] },
         { name: 'Mong Kok', coords: [114.1696, 22.3193] }
       ];
-      async function getIsochrone(lon, lat, profile = 'walking', minutes = [5, 10, 15]) {
+      async function getIsochrone(lon, lat, profile = 'driving', minutes = [5, 10, 15]) {
         const urlBase = 'https://api.mapbox.com/isochrone/v1/mapbox/';
         const query = await fetch(
             `${urlBase}${profile}/${lon},${lat}?contours_minutes=${minutes.join(',')}&polygons=true&access_token=${mapboxgl.accessToken}`,
