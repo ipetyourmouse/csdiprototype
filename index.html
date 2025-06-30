@@ -72,9 +72,17 @@
       map.on('load', () => {
         // When the map loads, add the data from the USGS earthquake API as a source
         map.addSource('parks', {
-          'type': 'geojson',
-          'data': 'PARKS_20250614.gdb_converted.csv',
+          'source': 'csdi_os',
+          'source-layer': 'csdi_os',
+          'type': 'symbol',
+            'layout': {
+              'icon-image': 'dot-10',
+              'icon-size': 0.5
+            }
           'generateId': true // This ensures that all features have unique IDs
+          'paint': {
+              'icon-color': '#0000FF'
+          }
         });
 
         // Add earthquakes as a layer and style it
