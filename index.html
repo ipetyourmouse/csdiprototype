@@ -31,7 +31,7 @@
       });
 
       let hoveredPointId = null;
-      map.on('load', {
+      map.on('load', (event) => {
         map.addSource('open-space', {
           type: 'vector',
           url:  'mapbox://newisland1223.cmcgebcfc1q5k1mpiyvm5ia8x-1j4p8'
