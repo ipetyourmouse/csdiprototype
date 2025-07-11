@@ -165,12 +165,15 @@
                 const lat = coordinates[1];
                 const lon = coordinates[0];
             
-                // Hide all existing isochrone layers
+                // Hide all existing isochrone layers and facilities layer
                 intervals.forEach(interval => {
                     if (map.getLayer(`isochrone-${interval}`)) {
                         map.setLayoutProperty(`isochrone-${interval}`, 'visibility', 'none');
                     }
                 });
+                if (map.getLayer('facilities')) {
+                    map.setLayoutProperty('facilities', 'visibility', 'none');
+                }
             
                 // Remove any previously hovered isochrone layers and transport markers
                 intervals.forEach(interval => {
@@ -196,11 +199,11 @@
                                 type: 'fill',
                                 source: `hovered-isochrone-${interval}`,
                                 paint: {
-                                    'fill-color': colors[idx], // Use same colors as non-hovered: #FFEDA0, #FEB24C, #E31A1C
+                                    'fill-color': colors[idx], // #FFEDA0, #FEB24C, #E31A1C
                                     'fill-opacity': 0.4,
                                     'fill-outline-color': colors[idx]
                                 }
-                            }, 'facilities'); // Add below facilities layer to avoid z-index overlap
+                            }, 'facilities'); // Add below where facilities would be
                         }
                     });
                 }
@@ -235,9 +238,26 @@
                             'circle-color': '#FF0000',
                             'circle-opacity': 0.8
                         }
-                    }, 'facilities'); // Add below facilities layer
+                    }, 'facilities'); // Add below where facilities would be
                 }
                 const stationCount = accessibleStations.length;
+            
+                // Re-add the hovered facility as a single marker
+                const hoveredFacility = {
+                    type: 'FeatureCollection',
+                    features: [{
+                        type: 'Feature',
+                        geometry: { type: 'Point', coordinates: [lon, lat] },
+                        properties: { name: facility.name, rating: facility.rating, description: facility.description }
+                    }]
+                };
+                map.addSource('hovered-facility', { type: 'geojson', data: hoveredFacility });
+                map.addLayer({
+                    id: 'hovered-facility',
+                    type: 'circle',
+                    source: 'hovered-facility',
+                    paint: { 'circle-radius': 6, 'circle-color': '#007cbf' }
+                });
             
                 // Update info box
                 infoBox.style.display = 'block';
@@ -256,6 +276,13 @@
                         map.removeSource(`hovered-isochrone-${interval}`);
                     }
                 });
+                if (map.getLayer('facilities')) {
+                    map.setLayoutProperty('facilities', 'visibility', 'visible');
+                }
+                if (map.getLayer('hovered-facility')) {
+                    map.removeLayer('hovered-facility');
+                    map.removeSource('hovered-facility');
+                }
                 if (map.getLayer('hovered-transport-stations')) {
                     map.removeLayer('hovered-transport-stations');
                     map.removeSource('hovered-transport-stations');
