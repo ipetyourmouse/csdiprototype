@@ -162,30 +162,47 @@
             map.on('mouseenter', 'facilities', async (e) => {
                 map.getCanvas().style.cursor = 'pointer';
                 const facility = e.features[0].properties;
-                const lat = parseFloat(facility.coordinates.split(',')[1]);
-                const lon = parseFloat(facility.coordinates.split(',')[0]);
-
-                // Hide all isochrones except the hovered facility's
+                const coordinates = e.features[0].geometry.coordinates; // [lon, lat]
+                const lat = coordinates[1];
+                const lon = coordinates[0];
+            
+                // Hide all existing isochrone layers
                 intervals.forEach(interval => {
                     if (map.getLayer(`isochrone-${interval}`)) {
                         map.setLayoutProperty(`isochrone-${interval}`, 'visibility', 'none');
                     }
                 });
+            
+                // Remove any previously hovered isochrone layers
+                intervals.forEach(interval => {
+                    if (map.getLayer(`hovered-isochrone-${interval}`)) {
+                        map.removeLayer(`hovered-isochrone-${interval}`);
+                        map.removeSource(`hovered-isochrone-${interval}`);
+                    }
+                });
+            
+                // Fetch isochrones for the hovered facility
                 const hoveredIsochrones = await fetchIsochronesWithRetry(lat, lon, facility.name, 2);
                 if (hoveredIsochrones) {
-                    const hovered15min = hoveredIsochrones.find(f => f.properties.contour === 15);
-                    if (hovered15min) {
-                        map.addSource(`hovered-isochrone-15`, { type: 'geojson', data: hovered15min });
-                        map.addLayer({
-                            id: `hovered-isochrone-15`,
-                            type: 'fill',
-                            source: `hovered-isochrone-15`,
-                            paint: { 'fill-color': '#E31A1C', 'fill-opacity': 0.4, 'fill-outline-color': '#E31A1C' }
-                        });
-                    }
+                    intervals.forEach((interval, idx) => {
+                        const isochrone = hoveredIsochrones.find(f => f.properties.contour === interval);
+                        if (isochrone) {
+                            map.addSource(`hovered-isochrone-${interval}`, { type: 'geojson', data: isochrone });
+                            map.addLayer({
+                                id: `hovered-isochrone-${interval}`,
+                                type: 'fill',
+                                source: `hovered-isochrone-${interval}`,
+                                paint: {
+                                    'fill-color': colors[idx],
+                                    'fill-opacity': 0.4,
+                                    'fill-outline-color': colors[idx]
+                                }
+                            });
+                        }
+                    });
                 }
-
-                // Calculate accessible transport stations
+            
+                // Calculate accessible transport stations (using 15-minute isochrone)
                 const isochrone15 = hoveredIsochrones ? hoveredIsochrones.find(f => f.properties.contour === 15) : null;
                 let accessibleStations = [];
                 if (isochrone15) {
@@ -196,7 +213,7 @@
                     }).map(station => station.Name);
                 }
                 const stationCount = accessibleStations.length;
-
+            
                 // Update info box
                 infoBox.style.display = 'block';
                 infoBox.innerHTML = `<h3>${facility.name}</h3><p>Rating: ${facility.rating}</p><p>Transport Stations (15 min walk): ${stationCount}</p><p>${facility.description}</p>`;
@@ -209,11 +226,11 @@
                     if (map.getLayer(`isochrone-${interval}`)) {
                         map.setLayoutProperty(`isochrone-${interval}`, 'visibility', 'visible');
                     }
+                    if (map.getLayer(`hovered-isochrone-${interval}`)) {
+                        map.removeLayer(`hovered-isochrone-${interval}`);
+                        map.removeSource(`hovered-isochrone-${interval}`);
+                    }
                 });
-                if (map.getLayer(`hovered-isochrone-15`)) {
-                    map.removeLayer(`hovered-isochrone-15`);
-                    map.removeSource(`hovered-isochrone-15`);
-                }
             });
 
             map.on('click', 'facilities', (e) => {
