@@ -173,6 +173,18 @@
                     }
                 });
             
+                // Remove any previously hovered isochrone layers and transport markers
+                intervals.forEach(interval => {
+                    if (map.getLayer(`hovered-isochrone-${interval}`)) {
+                        map.removeLayer(`hovered-isochrone-${interval}`);
+                        map.removeSource(`hovered-isochrone-${interval}`);
+                    }
+                });
+                if (map.getLayer('hovered-transport-stations')) {
+                    map.removeLayer('hovered-transport-stations');
+                    map.removeSource('hovered-transport-stations');
+                }
+            
                 // Fetch isochrones for the hovered facility
                 const hoveredIsochrones = await fetchIsochronesWithRetry(lat, lon, facility.name, 2);
                 if (hoveredIsochrones) {
@@ -202,7 +214,29 @@
                     accessibleStations = transportStations.filter(station => {
                         const pt = turf.point([parseFloat(station.Longitude), parseFloat(station.Latitude)]);
                         return turf.booleanPointInPolygon(pt, isochronePolygon);
-                    }).map(station => station.Name);
+                    });
+            
+                    // Add transport station markers
+                    const transportMarkers = {
+                        type: 'FeatureCollection',
+                        features: accessibleStations.map(station => ({
+                            type: 'Feature',
+                            geometry: { type: 'Point', coordinates: [parseFloat(station.Longitude), parseFloat(station.Latitude)] },
+                            properties: { name: station.Name, type: station.Type }
+                        }))
+                    };
+            
+                    map.addSource('hovered-transport-stations', { type: 'geojson', data: transportMarkers });
+                    map.addLayer({
+                        id: 'hovered-transport-stations',
+                        type: 'circle',
+                        source: 'hovered-transport-stations',
+                        paint: {
+                            'circle-radius': 5,
+                            'circle-color': '#FF0000', // Red to distinguish from facility markers
+                            'circle-opacity': 0.8
+                        }
+                    });
                 }
                 const stationCount = accessibleStations.length;
             
@@ -210,7 +244,7 @@
                 infoBox.style.display = 'block';
                 infoBox.innerHTML = `<h3>${facility.name}</h3><p>Rating: ${facility.rating}</p><p>Transport Stations (15 min walk): ${stationCount}</p><p>${facility.description}</p>`;
             });
-
+            
             map.on('mouseleave', 'facilities', () => {
                 map.getCanvas().style.cursor = '';
                 infoBox.style.display = 'none';
@@ -223,6 +257,10 @@
                         map.removeSource(`hovered-isochrone-${interval}`);
                     }
                 });
+                if (map.getLayer('hovered-transport-stations')) {
+                    map.removeLayer('hovered-transport-stations');
+                    map.removeSource('hovered-transport-stations');
+                }
             });
 
             map.on('click', 'facilities', (e) => {
