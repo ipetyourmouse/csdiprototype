@@ -197,11 +197,11 @@
                                 type: 'fill',
                                 source: `hovered-isochrone-${interval}`,
                                 paint: {
-                                    'fill-color': colors[idx],
+                                    'fill-color': colors[idx], // Use same colors as non-hovered: #FFEDA0, #FEB24C, #E31A1C
                                     'fill-opacity': 0.4,
                                     'fill-outline-color': colors[idx]
                                 }
-                            });
+                            }, 'facilities'); // Add below facilities layer to avoid z-index overlap
                         }
                     });
                 }
@@ -233,10 +233,10 @@
                         source: 'hovered-transport-stations',
                         paint: {
                             'circle-radius': 5,
-                            'circle-color': '#FF0000', // Red to distinguish from facility markers
+                            'circle-color': '#FF0000',
                             'circle-opacity': 0.8
                         }
-                    });
+                    }, 'facilities'); // Add below facilities layer
                 }
                 const stationCount = accessibleStations.length;
             
