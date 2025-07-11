@@ -3,28 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Isochrone Map for Leisure Facilities</title>
+    <title>Interactive Isochrone Map for Various Facilities</title>
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.9.0/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.9.0/mapbox-gl.css" rel="stylesheet" />
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; font-family: Calibri; }
+        body { margin: 0; padding: 0; }
         #map { height: 100vh; width: 100%; }
         #info-box {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            width: 250px; 
-            padding: 10px;
+            position: absolute;
+            top: 10px;
+            left: 10px;
             background: white;
-            border: 1px solid #ccc;
-            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+        }
+        #facility-type {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 5px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            z-index: 1001;
         }
         .legend {
             position: absolute;
             bottom: 30px;
-            right: 10px;
+            left: 10px;
             background: white;
             padding: 10px;
             border-radius: 5px;
@@ -45,6 +56,13 @@
 <body>
     <div id="map"></div>
     <div id="info-box"></div>
+    <div id="facility-type">
+        <select id="type-select" onchange="updateMapData()">
+            <option value="leisure">Leisure facilities</option>
+            <option value="parks">Parks</option>
+            <option value="shopping">Shopping malls</option>
+        </select>
+    </div>
     <script>
         mapboxgl.accessToken = 'pk.eyJ1IjoibmV3aXNsYW5kMTIyMyIsImEiOiJjamJqaG5jb3Y0MHVpMnFxZ3IzN3NhbGwzIn0.giv88MrlUsX2WznylrLvwA';
 
@@ -57,26 +75,40 @@
 
         const intervals = [5, 10, 15];
         const colors = ['#FFEDA0', '#FEB24C', '#E31A1C'];
+        let currentFacilities = [];
+        let currentTransportStations = [];
 
-        map.on('load', async () => {
-            // Load leisure facility data
+        async function loadData(type) {
+            let facilityFile, transportFile;
+            switch (type) {
+                case 'parks':
+                    facilityFile = 'CSDI Parks with Descriptions by New Town.csv';
+                    break;
+                case 'shopping':
+                    facilityFile = 'CSDI Malls with Descriptions by New Town.csv';
+                    break;
+                case 'leisure':
+                default:
+                    facilityFile = 'CSDI Leisure with Descriptions by New Town.csv';
+                    break;
+            }
+            transportFile = 'CSDI All Transport Data Combined.csv';
 
-            const leisureResponse = await fetch('CSDI Leisure with Descriptions by New Town.csv');
-            const leisureData = await leisureResponse.text();
-            const leisureResults = Papa.parse(leisureData, {
+            const facilityResponse = await fetch(facilityFile);
+            const facilityData = await facilityResponse.text();
+            const facilityResults = Papa.parse(facilityData, {
                 header: true,
                 skipEmptyLines: true,
                 transformHeader: header => header.trim().replace(/^"|"$/g, ''),
                 transform: value => value.trim().replace(/^"|"$/g, '')
             });
-            const facilities = leisureResults.data.filter(row => {
+            currentFacilities = facilityResults.data.filter(row => {
                 const lat = parseFloat(row.latitude);
                 const lon = parseFloat(row.longitude);
                 return !isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
             });
 
-            // Load transport station data
-            const transportResponse = await fetch('CSDI All Transport Data Combined.csv');
+            const transportResponse = await fetch(transportFile);
             const transportData = await transportResponse.text();
             const transportResults = Papa.parse(transportData, {
                 header: true,
@@ -84,79 +116,98 @@
                 transformHeader: header => header.trim().replace(/^"|"$/g, ''),
                 transform: value => value.trim().replace(/^"|"$/g, '')
             });
-            const transportStations = transportResults.data.filter(row => {
+            currentTransportStations = transportResults.data.filter(row => {
                 const lat = parseFloat(row.Latitude);
                 const lon = parseFloat(row.Longitude);
                 return !isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
             });
+        }
 
-            // Fetch and merge isochrones
-            const isochronePromises = facilities.map(facility => 
-                fetchIsochronesWithRetry(facility.latitude, facility.longitude, facility.name, 2)
-            );
-            const allIsochrones = await Promise.all(isochronePromises);
-
-            const mergedIsochrones = intervals.reduce((acc, interval) => {
-                acc[interval] = [];
-                return acc;
-            }, {});
-
-            allIsochrones.forEach((isochrones, idx) => {
-                if (isochrones) {
-                    isochrones.forEach((feature, i) => {
-                        if (feature) mergedIsochrones[intervals[i]].push(feature);
-                    });
-                }
-            });
-
-            intervals.forEach((interval, idx) => {
-                let merged = null;
-                mergedIsochrones[interval].forEach((feature, i) => {
-                    if (i === 0) {
-                        merged = feature;
-                    } else {
-                        try {
-                            merged = turf.union(merged, feature);
-                        } catch (e) {
-                            console.warn(`Union failed for interval ${interval} minutes at ${feature.properties.name}:`, e);
-                        }
+        function updateMapData() {
+            const type = document.getElementById('type-select').value;
+            loadData(type).then(() => {
+                // Remove existing layers and sources
+                intervals.forEach(interval => {
+                    if (map.getLayer(`isochrone-${interval}`)) {
+                        map.removeLayer(`isochrone-${interval}`);
+                        map.removeSource(`isochrone-${interval}`);
                     }
                 });
+                if (map.getLayer('facilities')) {
+                    map.removeLayer('facilities');
+                    map.removeSource('facilities');
+                }
 
-                if (merged) {
-                    map.addSource(`isochrone-${interval}`, { type: 'geojson', data: merged });
-                    map.addLayer({
-                        id: `isochrone-${interval}`,
-                        type: 'fill',
-                        source: `isochrone-${interval}`,
-                        paint: {
-                            'fill-color': colors[idx],
-                            'fill-opacity': 0.3,
-                            'fill-outline-color': colors[idx]
+                // Fetch and merge isochrones
+                const isochronePromises = currentFacilities.map(facility =>
+                    fetchIsochronesWithRetry(facility.latitude, facility.longitude, facility.name, 2)
+                );
+                Promise.all(isochronePromises).then(allIsochrones => {
+                    const mergedIsochrones = intervals.reduce((acc, interval) => {
+                        acc[interval] = [];
+                        return acc;
+                    }, {});
+                    allIsochrones.forEach((isochrones, idx) => {
+                        if (isochrones) {
+                            isochrones.forEach((feature, i) => {
+                                if (feature) mergedIsochrones[intervals[i]].push(feature);
+                            });
                         }
                     });
-                }
+
+                    intervals.forEach((interval, idx) => {
+                        let merged = null;
+                        mergedIsochrones[interval].forEach((feature, i) => {
+                            if (i === 0) {
+                                merged = feature;
+                            } else {
+                                try {
+                                    merged = turf.union(merged, feature);
+                                } catch (e) {
+                                    console.warn(`Union failed for interval ${interval} minutes at ${feature.properties.name}:`, e);
+                                }
+                            }
+                        });
+
+                        if (merged) {
+                            map.addSource(`isochrone-${interval}`, { type: 'geojson', data: merged });
+                            map.addLayer({
+                                id: `isochrone-${interval}`,
+                                type: 'fill',
+                                source: `isochrone-${interval}`,
+                                paint: {
+                                    'fill-color': colors[idx],
+                                    'fill-opacity': 0.3,
+                                    'fill-outline-color': colors[idx]
+                                }
+                            });
+                        }
+                    });
+
+                    // Add facility markers
+                    const markers = {
+                        type: 'FeatureCollection',
+                        features: currentFacilities.map(facility => ({
+                            type: 'Feature',
+                            geometry: { type: 'Point', coordinates: [parseFloat(facility.longitude), parseFloat(facility.latitude)] },
+                            properties: { name: facility.name, rating: facility.rating || 'N/A', description: facility.description || 'No description available' }
+                        }))
+                    };
+                    map.addSource('facilities', { type: 'geojson', data: markers });
+                    map.addLayer({
+                        id: 'facilities',
+                        type: 'circle',
+                        source: 'facilities',
+                        paint: { 'circle-radius': 6, 'circle-color': '#007cbf' }
+                    });
+
+                    // Re-attach event handlers
+                    setupEventHandlers();
+                });
             });
+        }
 
-            // Add facility markers
-            const markers = {
-                type: 'FeatureCollection',
-                features: facilities.map(facility => ({
-                    type: 'Feature',
-                    geometry: { type: 'Point', coordinates: [parseFloat(facility.longitude), parseFloat(facility.latitude)] },
-                    properties: { name: facility.name, rating: facility.rating || 'N/A', description: facility.description || 'No description available' }
-                }))
-            };
-
-            map.addSource('facilities', { type: 'geojson', data: markers });
-            map.addLayer({
-                id: 'facilities',
-                type: 'circle',
-                source: 'facilities',
-                paint: { 'circle-radius': 5, 'circle-color': '#007cbf' }
-            });
-
-            // Hover effects and info box
+        function setupEventHandlers() {
             const infoBox = document.getElementById('info-box');
             map.on('mouseenter', 'facilities', async (e) => {
                 map.getCanvas().style.cursor = 'pointer';
@@ -164,7 +215,7 @@
                 const coordinates = e.features[0].geometry.coordinates; // [lon, lat]
                 const lat = coordinates[1];
                 const lon = coordinates[0];
-            
+
                 // Hide all existing isochrone layers and facilities layer
                 intervals.forEach(interval => {
                     if (map.getLayer(`isochrone-${interval}`)) {
@@ -174,7 +225,7 @@
                 if (map.getLayer('facilities')) {
                     map.setLayoutProperty('facilities', 'visibility', 'none');
                 }
-            
+
                 // Remove any previously hovered isochrone layers and transport markers
                 intervals.forEach(interval => {
                     if (map.getLayer(`hovered-isochrone-${interval}`)) {
@@ -186,7 +237,11 @@
                     map.removeLayer('hovered-transport-stations');
                     map.removeSource('hovered-transport-stations');
                 }
-            
+                if (map.getLayer('hovered-facility')) {
+                    map.removeLayer('hovered-facility');
+                    map.removeSource('hovered-facility');
+                }
+
                 // Fetch isochrones for the hovered facility
                 const hoveredIsochrones = await fetchIsochronesWithRetry(lat, lon, facility.name, 2);
                 if (hoveredIsochrones) {
@@ -199,25 +254,25 @@
                                 type: 'fill',
                                 source: `hovered-isochrone-${interval}`,
                                 paint: {
-                                    'fill-color': colors[idx], // #FFEDA0, #FEB24C, #E31A1C
+                                    'fill-color': colors[idx],
                                     'fill-opacity': 0.2,
                                     'fill-outline-color': colors[idx]
                                 }
-                            }, 'facilities'); // Add below where facilities would be
+                            }, 'facilities');
                         }
                     });
                 }
-            
+
                 // Calculate accessible transport stations (using 15-minute isochrone)
                 const isochrone15 = hoveredIsochrones ? hoveredIsochrones.find(f => f.properties.contour === 15) : null;
                 let accessibleStations = [];
                 if (isochrone15) {
                     const isochronePolygon = turf.polygon(isochrone15.geometry.coordinates);
-                    accessibleStations = transportStations.filter(station => {
+                    accessibleStations = currentTransportStations.filter(station => {
                         const pt = turf.point([parseFloat(station.Longitude), parseFloat(station.Latitude)]);
                         return turf.booleanPointInPolygon(pt, isochronePolygon);
                     });
-            
+
                     // Add transport station markers
                     const transportMarkers = {
                         type: 'FeatureCollection',
@@ -227,21 +282,21 @@
                             properties: { name: station.Name, type: station.Type }
                         }))
                     };
-            
+
                     map.addSource('hovered-transport-stations', { type: 'geojson', data: transportMarkers });
                     map.addLayer({
                         id: 'hovered-transport-stations',
                         type: 'circle',
                         source: 'hovered-transport-stations',
                         paint: {
-                            'circle-radius': 3,
+                            'circle-radius': 5,
                             'circle-color': '#FF0000',
                             'circle-opacity': 0.8
                         }
-                    }, 'facilities'); // Add below where facilities would be
+                    }, 'facilities');
                 }
                 const stationCount = accessibleStations.length;
-            
+
                 // Re-add the hovered facility as a single marker
                 const hoveredFacility = {
                     type: 'FeatureCollection',
@@ -258,12 +313,12 @@
                     source: 'hovered-facility',
                     paint: { 'circle-radius': 6, 'circle-color': '#007cbf' }
                 });
-            
+
                 // Update info box
                 infoBox.style.display = 'block';
                 infoBox.innerHTML = `<h3>${facility.name}</h3><p>Rating: ${facility.rating}</p><p>Transport Stations (15 min walk): ${stationCount}</p><p>${facility.description}</p>`;
             });
-            
+
             map.on('mouseleave', 'facilities', () => {
                 map.getCanvas().style.cursor = '';
                 infoBox.style.display = 'none';
@@ -295,6 +350,13 @@
                     .setLngLat(e.lngLat)
                     .setHTML(name)
                     .addTo(map);
+            });
+        }
+
+        map.on('load', () => {
+            // Initial load with leisure facilities
+            loadData('leisure').then(() => {
+                updateMapData();
             });
 
             // Add legend
