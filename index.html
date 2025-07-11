@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Combined Isochrone Map for Leisure Facilities</title>
+    <title>Interactive Isochrone Map for Leisure Facilities</title>
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.9.0/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.9.0/mapbox-gl.css" rel="stylesheet" />
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
@@ -11,6 +11,17 @@
     <style>
         body { margin: 0; padding: 0; }
         #map { height: 100vh; width: 100%; }
+        #info-box {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+        }
         .legend {
             position: absolute;
             bottom: 30px;
@@ -34,191 +45,199 @@
 </head>
 <body>
     <div id="map"></div>
+    <div id="info-box"></div>
     <script>
         mapboxgl.accessToken = 'pk.eyJ1IjoibmV3aXNsYW5kMTIyMyIsImEiOiJjamJqaG5jb3Y0MHVpMnFxZ3IzN3NhbGwzIn0.giv88MrlUsX2WznylrLvwA';
 
-        // Initialize Mapbox map with custom style
         const map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/newisland1223/clzig8nrs00l501qqa3yxfgzm',
-            center: [114.00, 22.45], // Centered on Tin Shui Wai
+            center: [114.00, 22.45],
             zoom: 12
         });
 
-        // Define isochrone time intervals and colors
-        const intervals = [5, 10, 15]; // Minutes
+        const intervals = [5, 10, 15];
         const colors = ['#FFEDA0', '#FEB24C', '#E31A1C'];
-        const layers = intervals.map((interval, idx) => ({
-            id: `isochrone-${interval}`,
-            source: `isochrone-${interval}`,
-            color: colors[idx],
-            visible: true
-        }));
 
-        // Embedded CSV data
-        const csvData = await fetch('CSDI_Leisure_with_Descriptions_by_New_Town.csv').then(r => r.text());
-
-        map.on('load', () => {
-            // Parse CSV data
-            Papa.parse(csvData, {
+        map.on('load', async () => {
+            // Load leisure facility data
+            const leisureResponse = await fetch('CSDI_Leisure_with_Descriptions_by_New_Town.csv');
+            const leisureData = await leisureResponse.text();
+            const leisureResults = Papa.parse(leisureData, {
                 header: true,
                 skipEmptyLines: true,
                 transformHeader: header => header.trim().replace(/^"|"$/g, ''),
-                transform: value => value.trim().replace(/^"|"$/g, ''),
-                complete: async results => {
-                    const facilities = results.data.filter(row => {
-                        const lat = parseFloat(row.latitude);
-                        const lon = parseFloat(row.longitude);
-                        return !isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
-                    });
-
-                    // Fetch isochrones with retry logic
-                    const isochronePromises = facilities.map(facility => 
-                        fetchIsochronesWithRetry(facility.latitude, facility.longitude, facility.name, 2)
-                    );
-                    const allIsochrones = await Promise.all(isochronePromises);
-
-                    // Group and merge isochrones by interval into single polygons
-                    const mergedIsochrones = intervals.reduce((acc, interval) => {
-                        acc[interval] = [];
-                        return acc;
-                    }, {});
-
-                    allIsochrones.forEach((isochrones, idx) => {
-                        if (isochrones) {
-                            isochrones.forEach((feature, i) => {
-                                if (feature) mergedIsochrones[intervals[i]].push(feature);
-                            });
-                        } else {
-                            console.warn(`No isochrones returned for ${facilities[idx].name}`);
-                        }
-                    });
-
-                    // Merge all isochrones for each interval into a single contiguous polygon
-                    intervals.forEach((interval, idx) => {
-                        let merged = null;
-                        mergedIsochrones[interval].forEach((feature, i) => {
-                            if (i === 0) {
-                                merged = feature;
-                            } else {
-                                try {
-                                    // Use turf.union to combine into a single polygon, ensuring contiguous boundaries
-                                    merged = turf.union(merged, feature);
-                                } catch (e) {
-                                    console.warn(`Union failed for interval ${interval} minutes at ${feature.properties.name}:`, e);
-                                }
-                            }
-                        });
-
-                        if (merged) {
-                            map.addSource(`isochrone-${interval}`, {
-                                type: 'geojson',
-                                data: merged
-                            });
-                            map.addLayer({
-                                id: `isochrone-${interval}`,
-                                type: 'fill',
-                                source: `isochrone-${interval}`,
-                                paint: {
-                                    'fill-color': colors[idx],
-                                    'fill-opacity': 0.4,
-                                    'fill-outline-color': colors[idx]
-                                }
-                            });
-                            map.on('click', `isochrone-${interval}`, e => {
-                                new mapboxgl.Popup()
-                                    .setLngLat(e.lngLat)
-                                    .setHTML(`Walkable in ${interval} minutes`)
-                                    .addTo(map);
-                            });
-                        }
-                    });
-
-                    // Add facility markers
-                    const markers = {
-                        type: 'FeatureCollection',
-                        features: facilities.map(facility => ({
-                            type: 'Feature',
-                            geometry: {
-                                type: 'Point',
-                                coordinates: [parseFloat(facility.longitude), parseFloat(facility.latitude)]
-                            },
-                            properties: {
-                                name: facility.name
-                            }
-                        }))
-                    };
-
-                    map.addSource('facilities', {
-                        type: 'geojson',
-                        data: markers
-                    });
-                    map.addLayer({
-                        id: 'facilities',
-                        type: 'circle',
-                        source: 'facilities',
-                        paint: {
-                            'circle-radius': 6,
-                            'circle-color': '#007cbf'
-                        }
-                    });
-
-                    map.on('click', 'facilities', e => {
-                        const name = e.features[0].properties.name;
-                        new mapboxgl.Popup()
-                            .setLngLat(e.lngLat)
-                            .setHTML(name)
-                            .addTo(map);
-                    });
-                    map.on('mouseenter', 'facilities', () => map.getCanvas().style.cursor = 'pointer');
-                    map.on('mouseleave', 'facilities', () => map.getCanvas().style.cursor = '');
-
-                    // Add layer control with event listeners attached during creation
-                    const layerControl = document.createElement('div');
-                    layerControl.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
-                    intervals.forEach((interval, idx) => {
-                        const div = document.createElement('div');
-                        div.style.padding = '5px';
-                        const checkbox = document.createElement('input');
-                        checkbox.type = 'checkbox';
-                        checkbox.id = `layer-${interval}`;
-                        checkbox.checked = true;
-                        const label = document.createElement('label');
-                        label.htmlFor = `layer-${interval}`;
-                        label.textContent = ` ${interval} min`;
-                        div.appendChild(checkbox);
-                        div.appendChild(label);
-                        layerControl.appendChild(div);
-
-                        // Attach event listener immediately after creating the checkbox
-                        checkbox.addEventListener('change', e => {
-                            map.setLayoutProperty(`isochrone-${interval}`, 'visibility', e.target.checked ? 'visible' : 'none');
-                        });
-                    });
-                    map.getContainer().appendChild(layerControl);
-
-                    // Add legend
-                    const legend = document.createElement('div');
-                    legend.className = 'legend';
-                    intervals.forEach((interval, idx) => {
-                        legend.innerHTML += `<div><span class="legend-color" style="background:${colors[idx]}"></span>${interval} minutes</div>`;
-                    });
-                    map.getContainer().appendChild(legend);
-                },
-                error: err => console.error('CSV parsing error:', err)
+                transform: value => value.trim().replace(/^"|"$/g, '')
             });
+            const facilities = leisureResults.data.filter(row => {
+                const lat = parseFloat(row.latitude);
+                const lon = parseFloat(row.longitude);
+                return !isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+            });
+
+            // Load transport station data
+            const transportResponse = await fetch('CSDI All Transport Data Combined.csv');
+            const transportData = await transportResponse.text();
+            const transportResults = Papa.parse(transportData, {
+                header: true,
+                skipEmptyLines: true,
+                transformHeader: header => header.trim().replace(/^"|"$/g, ''),
+                transform: value => value.trim().replace(/^"|"$/g, '')
+            });
+            const transportStations = transportResults.data.filter(row => {
+                const lat = parseFloat(row.Latitude);
+                const lon = parseFloat(row.Longitude);
+                return !isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+            });
+
+            // Fetch and merge isochrones
+            const isochronePromises = facilities.map(facility => 
+                fetchIsochronesWithRetry(facility.latitude, facility.longitude, facility.name, 2)
+            );
+            const allIsochrones = await Promise.all(isochronePromises);
+
+            const mergedIsochrones = intervals.reduce((acc, interval) => {
+                acc[interval] = [];
+                return acc;
+            }, {});
+
+            allIsochrones.forEach((isochrones, idx) => {
+                if (isochrones) {
+                    isochrones.forEach((feature, i) => {
+                        if (feature) mergedIsochrones[intervals[i]].push(feature);
+                    });
+                }
+            });
+
+            intervals.forEach((interval, idx) => {
+                let merged = null;
+                mergedIsochrones[interval].forEach((feature, i) => {
+                    if (i === 0) {
+                        merged = feature;
+                    } else {
+                        try {
+                            merged = turf.union(merged, feature);
+                        } catch (e) {
+                            console.warn(`Union failed for interval ${interval} minutes at ${feature.properties.name}:`, e);
+                        }
+                    }
+                });
+
+                if (merged) {
+                    map.addSource(`isochrone-${interval}`, { type: 'geojson', data: merged });
+                    map.addLayer({
+                        id: `isochrone-${interval}`,
+                        type: 'fill',
+                        source: `isochrone-${interval}`,
+                        paint: {
+                            'fill-color': colors[idx],
+                            'fill-opacity': 0.4,
+                            'fill-outline-color': colors[idx]
+                        }
+                    });
+                }
+            });
+
+            // Add facility markers
+            const markers = {
+                type: 'FeatureCollection',
+                features: facilities.map(facility => ({
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: [parseFloat(facility.longitude), parseFloat(facility.latitude)] },
+                    properties: { name: facility.name, rating: facility.rating || 'N/A', description: facility.description || 'No description available' }
+                }))
+            };
+
+            map.addSource('facilities', { type: 'geojson', data: markers });
+            map.addLayer({
+                id: 'facilities',
+                type: 'circle',
+                source: 'facilities',
+                paint: { 'circle-radius': 6, 'circle-color': '#007cbf' }
+            });
+
+            // Hover effects and info box
+            const infoBox = document.getElementById('info-box');
+            map.on('mouseenter', 'facilities', async (e) => {
+                map.getCanvas().style.cursor = 'pointer';
+                const facility = e.features[0].properties;
+                const lat = parseFloat(facility.coordinates.split(',')[1]);
+                const lon = parseFloat(facility.coordinates.split(',')[0]);
+
+                // Hide all isochrones except the hovered facility's
+                intervals.forEach(interval => {
+                    if (map.getLayer(`isochrone-${interval}`)) {
+                        map.setLayoutProperty(`isochrone-${interval}`, 'visibility', 'none');
+                    }
+                });
+                const hoveredIsochrones = await fetchIsochronesWithRetry(lat, lon, facility.name, 2);
+                if (hoveredIsochrones) {
+                    const hovered15min = hoveredIsochrones.find(f => f.properties.contour === 15);
+                    if (hovered15min) {
+                        map.addSource(`hovered-isochrone-15`, { type: 'geojson', data: hovered15min });
+                        map.addLayer({
+                            id: `hovered-isochrone-15`,
+                            type: 'fill',
+                            source: `hovered-isochrone-15`,
+                            paint: { 'fill-color': '#E31A1C', 'fill-opacity': 0.4, 'fill-outline-color': '#E31A1C' }
+                        });
+                    }
+                }
+
+                // Calculate accessible transport stations
+                const isochrone15 = hoveredIsochrones ? hoveredIsochrones.find(f => f.properties.contour === 15) : null;
+                let accessibleStations = [];
+                if (isochrone15) {
+                    const isochronePolygon = turf.polygon(isochrone15.geometry.coordinates);
+                    accessibleStations = transportStations.filter(station => {
+                        const pt = turf.point([parseFloat(station.Longitude), parseFloat(station.Latitude)]);
+                        return turf.booleanPointInPolygon(pt, isochronePolygon);
+                    }).map(station => station.Name);
+                }
+                const stationCount = accessibleStations.length;
+
+                // Update info box
+                infoBox.style.display = 'block';
+                infoBox.innerHTML = `<h3>${facility.name}</h3><p>Rating: ${facility.rating}</p><p>Transport Stations (15 min walk): ${stationCount}</p><p>${facility.description}</p>`;
+            });
+
+            map.on('mouseleave', 'facilities', () => {
+                map.getCanvas().style.cursor = '';
+                infoBox.style.display = 'none';
+                intervals.forEach(interval => {
+                    if (map.getLayer(`isochrone-${interval}`)) {
+                        map.setLayoutProperty(`isochrone-${interval}`, 'visibility', 'visible');
+                    }
+                });
+                if (map.getLayer(`hovered-isochrone-15`)) {
+                    map.removeLayer(`hovered-isochrone-15`);
+                    map.removeSource(`hovered-isochrone-15`);
+                }
+            });
+
+            map.on('click', 'facilities', (e) => {
+                const name = e.features[0].properties.name;
+                new mapboxgl.Popup()
+                    .setLngLat(e.lngLat)
+                    .setHTML(name)
+                    .addTo(map);
+            });
+
+            // Add legend
+            const legend = document.createElement('div');
+            legend.className = 'legend';
+            intervals.forEach((interval, idx) => {
+                legend.innerHTML += `<div><span class="legend-color" style="background:${colors[idx]}"></span>${interval} minutes</div>`;
+            });
+            map.getContainer().appendChild(legend);
         });
 
-        // Fetch isochrones with retry
         async function fetchIsochronesWithRetry(lat, lon, name, maxRetries = 2) {
             const url = `https://api.mapbox.com/isochrone/v1/mapbox/walking/${lon},${lat}?contours_minutes=${intervals.join(',')}&polygons=true&access_token=${mapboxgl.accessToken}`;
-            
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
                     const response = await fetch(url);
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
+                    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     const data = await response.json();
                     return data.features.map(feature => {
                         feature.properties.name = name;
@@ -230,7 +249,7 @@
                         console.error(`Failed to fetch isochrones for ${name} after ${maxRetries} attempts:`, error);
                         return null;
                     }
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                 }
             }
         }
