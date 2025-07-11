@@ -131,7 +131,7 @@
                         source: `isochrone-${interval}`,
                         paint: {
                             'fill-color': colors[idx],
-                            'fill-opacity': 0.4,
+                            'fill-opacity': 0.3,
                             'fill-outline-color': colors[idx]
                         }
                     });
@@ -153,7 +153,7 @@
                 id: 'facilities',
                 type: 'circle',
                 source: 'facilities',
-                paint: { 'circle-radius': 6, 'circle-color': '#007cbf' }
+                paint: { 'circle-radius': 5, 'circle-color': '#007cbf' }
             });
 
             // Hover effects and info box
@@ -200,7 +200,7 @@
                                 source: `hovered-isochrone-${interval}`,
                                 paint: {
                                     'fill-color': colors[idx], // #FFEDA0, #FEB24C, #E31A1C
-                                    'fill-opacity': 0.4,
+                                    'fill-opacity': 0.7,
                                     'fill-outline-color': colors[idx]
                                 }
                             }, 'facilities'); // Add below where facilities would be
@@ -234,7 +234,7 @@
                         type: 'circle',
                         source: 'hovered-transport-stations',
                         paint: {
-                            'circle-radius': 5,
+                            'circle-radius': 3,
                             'circle-color': '#FF0000',
                             'circle-opacity': 0.8
                         }
