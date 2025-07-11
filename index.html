@@ -62,9 +62,7 @@
         map.on('load', async () => {
             // Load leisure facility data
 
-            const facilities = await fetch('CSDI_Leisure_with_Descriptions_by_New_Town.csv').then(r => r.text());
-                
-            /* const leisureResponse = await fetch('CSDI_Leisure_with_Descriptions_by_New_Town.csv');
+            const leisureResponse = await fetch('CSDI Leisure with Descriptions by New Town.csv');
             const leisureData = await leisureResponse.text();
             const leisureResults = Papa.parse(leisureData, {
                 header: true,
@@ -76,7 +74,7 @@
                 const lat = parseFloat(row.latitude);
                 const lon = parseFloat(row.longitude);
                 return !isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
-            });*/
+            });
 
             // Load transport station data
             const transportResponse = await fetch('CSDI All Transport Data Combined.csv');
