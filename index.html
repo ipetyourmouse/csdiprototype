@@ -173,14 +173,6 @@
                     }
                 });
             
-                // Remove any previously hovered isochrone layers
-                intervals.forEach(interval => {
-                    if (map.getLayer(`hovered-isochrone-${interval}`)) {
-                        map.removeLayer(`hovered-isochrone-${interval}`);
-                        map.removeSource(`hovered-isochrone-${interval}`);
-                    }
-                });
-            
                 // Fetch isochrones for the hovered facility
                 const hoveredIsochrones = await fetchIsochronesWithRetry(lat, lon, facility.name, 2);
                 if (hoveredIsochrones) {
