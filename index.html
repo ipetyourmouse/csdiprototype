@@ -10,11 +10,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         body { margin: 0; padding: 0; }
+        body { margin: 0; padding: 0; font-family: Calibri }
         #map { height: 100vh; width: 100%; }
-        #info-box {
+        #info-box { 
             position: absolute;
             top: 10px;
             left: 10px;
+            width: 250px;
             background: white;
             padding: 10px;
             border-radius: 5px;
@@ -35,16 +37,6 @@
         .legend {
             position: absolute;
             bottom: 30px;
-            left: 10px;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.2);
-            z-index: 1000;
-        }
-        .transport-legend {
-            position: absolute;
-            bottom: 80px; /* Position above isochrone legend */
             right: 10px;
             background: white;
             padding: 10px;
@@ -52,8 +44,8 @@
             box-shadow: 0 0 15px rgba(0,0,0,0.2);
             z-index: 1000;
         }
-        .legend div, .transport-legend div { margin-bottom: 5px; }
-        .legend-color, .transport-legend-color {
+        .legend div { margin-bottom: 5px; }
+        .legend-color {
             display: inline-block;
             width: 20px;
             height: 20px;
@@ -92,17 +84,17 @@
             let facilityFile, transportFile;
             switch (type) {
                 case 'parks':
-                    facilityFile = 'CSDI_Parks_Data.csv';
+                    facilityFile = 'CSDI Parks with Descriptions by New Town.csv';
                     break;
                 case 'shopping':
-                    facilityFile = 'CSDI_Shopping_Malls_Data.csv';
+                    facilityFile = 'CSDI Malls with Descriptions by New Town.csv';
                     break;
                 case 'leisure':
                 default:
-                    facilityFile = 'CSDI_Leisure_Data.csv';
+                    facilityFile = 'CSDI Leisure with Descriptions by New Town.csv';
                     break;
             }
-            transportFile = 'CSDI_All_Transport_Data_Combined.csv';
+            transportFile = 'CSDI All Transport Data Combined.csv';
 
             const facilityResponse = await fetch(facilityFile);
             const facilityData = await facilityResponse.text();
@@ -187,7 +179,7 @@
                                 source: `isochrone-${interval}`,
                                 paint: {
                                     'fill-color': colors[idx],
-                                    'fill-opacity': 0.4,
+                                    'fill-opacity': 0.3,
                                     'fill-outline-color': colors[idx]
                                 }
                             });
@@ -208,7 +200,7 @@
                         id: 'facilities',
                         type: 'circle',
                         source: 'facilities',
-                        paint: { 'circle-radius': 6, 'circle-color': '#007cbf' }
+                        paint: { 'circle-radius': 5, 'circle-color': '#007cbf' }
                     });
 
                     // Re-attach event handlers
@@ -243,17 +235,9 @@
                         map.removeSource(`hovered-isochrone-${interval}`);
                     }
                 });
-                if (map.getLayer('hovered-transport-stations-green')) {
-                    map.removeLayer('hovered-transport-stations-green');
-                    map.removeSource('hovered-transport-stations-green');
-                }
-                if (map.getLayer('hovered-transport-stations-red')) {
-                    map.removeLayer('hovered-transport-stations-red');
-                    map.removeSource('hovered-transport-stations-red');
-                }
-                if (map.getLayer('hovered-transport-stations-blue')) {
-                    map.removeLayer('hovered-transport-stations-blue');
-                    map.removeSource('hovered-transport-stations-blue');
+                if (map.getLayer('hovered-transport-stations')) {
+                    map.removeLayer('hovered-transport-stations');
+                    map.removeSource('hovered-transport-stations');
                 }
                 if (map.getLayer('hovered-facility')) {
                     map.removeLayer('hovered-facility');
@@ -273,7 +257,7 @@
                                 source: `hovered-isochrone-${interval}`,
                                 paint: {
                                     'fill-color': colors[idx],
-                                    'fill-opacity': 0.4,
+                                    'fill-opacity': 0.2,
                                     'fill-outline-color': colors[idx]
                                 }
                             }, 'facilities');
@@ -291,7 +275,7 @@
                         return turf.booleanPointInPolygon(pt, isochronePolygon);
                     });
 
-                    // Add transport station markers with separate layers by type
+                    // Add transport station markers
                     const transportMarkers = {
                         type: 'FeatureCollection',
                         features: accessibleStations.map(station => ({
@@ -302,44 +286,15 @@
                     };
 
                     map.addSource('hovered-transport-stations', { type: 'geojson', data: transportMarkers });
-
-                    // Green minibus (green)
                     map.addLayer({
-                        id: 'hovered-transport-stations-green',
+                        id: 'hovered-transport-stations',
                         type: 'circle',
                         source: 'hovered-transport-stations',
                         paint: {
-                            'circle-radius': 5,
-                            'circle-color': '#00FF00',
-                            'circle-opacity': 0.8
-                        },
-                        filter: ['==', 'type', 'Green minibus']
-                    }, 'facilities');
-
-                    // Bus and MTR Bus (red)
-                    map.addLayer({
-                        id: 'hovered-transport-stations-red',
-                        type: 'circle',
-                        source: 'hovered-transport-stations',
-                        paint: {
-                            'circle-radius': 5,
+                            'circle-radius': 3,
                             'circle-color': '#FF0000',
                             'circle-opacity': 0.8
-                        },
-                        filter: ['in', 'type', 'Bus', 'MTR Bus']
-                    }, 'facilities');
-
-                    // MTR (blue)
-                    map.addLayer({
-                        id: 'hovered-transport-stations-blue',
-                        type: 'circle',
-                        source: 'hovered-transport-stations',
-                        paint: {
-                            'circle-radius': 5,
-                            'circle-color': '#0000FF',
-                            'circle-opacity': 0.8
-                        },
-                        filter: ['==', 'type', 'MTR']
+                        }
                     }, 'facilities');
                 }
                 const stationCount = accessibleStations.length;
@@ -385,17 +340,9 @@
                     map.removeLayer('hovered-facility');
                     map.removeSource('hovered-facility');
                 }
-                if (map.getLayer('hovered-transport-stations-green')) {
-                    map.removeLayer('hovered-transport-stations-green');
-                    map.removeSource('hovered-transport-stations-green');
-                }
-                if (map.getLayer('hovered-transport-stations-red')) {
-                    map.removeLayer('hovered-transport-stations-red');
-                    map.removeSource('hovered-transport-stations-red');
-                }
-                if (map.getLayer('hovered-transport-stations-blue')) {
-                    map.removeLayer('hovered-transport-stations-blue');
-                    map.removeSource('hovered-transport-stations-blue');
+                if (map.getLayer('hovered-transport-stations')) {
+                    map.removeLayer('hovered-transport-stations');
+                    map.removeSource('hovered-transport-stations');
                 }
             });
 
@@ -414,23 +361,13 @@
                 updateMapData();
             });
 
-            // Add transport legend
-            const transportLegend = document.createElement('div');
-            transportLegend.className = 'transport-legend';
-            transportLegend.innerHTML = `
-                <div><span class="transport-legend-color" style="background:#00FF00"></span>Green minibus</div>
-                <div><span class="transport-legend-color" style="background:#FF0000"></span>Bus / MTR Bus</div>
-                <div><span class="transport-legend-color" style="background:#0000FF"></span>MTR</div>
-            `;
-            map.getContainer().appendChild(transportLegend);
-
-            // Add isochrone legend
-            const isochroneLegend = document.createElement('div');
-            isochroneLegend.className = 'legend';
+            // Add legend
+            const legend = document.createElement('div');
+            legend.className = 'legend';
             intervals.forEach((interval, idx) => {
-                isochroneLegend.innerHTML += `<div><span class="legend-color" style="background:${colors[idx]}"></span>${interval} minutes</div>`;
+                legend.innerHTML += `<div><span class="legend-color" style="background:${colors[idx]}"></span>${interval} minutes</div>`;
             });
-            map.getContainer().appendChild(isochroneLegend);
+            map.getContainer().appendChild(legend);
         });
 
         async function fetchIsochronesWithRetry(lat, lon, name, maxRetries = 2) {
