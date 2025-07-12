@@ -9,13 +9,12 @@
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; font-family: Calibri }
+        body { margin: 0; padding: 0; }
         #map { height: 100vh; width: 100%; }
-        #info-box { 
+        #info-box {
             position: absolute;
             top: 10px;
             left: 10px;
-            width: 250px;
             background: white;
             padding: 10px;
             border-radius: 5px;
@@ -36,6 +35,16 @@
         .legend {
             position: absolute;
             bottom: 30px;
+            left: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        .transport-legend {
+            position: absolute;
+            bottom: 80px; /* Position above isochrone legend */
             right: 10px;
             background: white;
             padding: 10px;
@@ -43,8 +52,8 @@
             box-shadow: 0 0 15px rgba(0,0,0,0.2);
             z-index: 1000;
         }
-        .legend div { margin-bottom: 5px; }
-        .legend-color {
+        .legend div, .transport-legend div { margin-bottom: 5px; }
+        .legend-color, .transport-legend-color {
             display: inline-block;
             width: 20px;
             height: 20px;
@@ -83,17 +92,17 @@
             let facilityFile, transportFile;
             switch (type) {
                 case 'parks':
-                    facilityFile = 'CSDI Parks with Descriptions by New Town.csv';
+                    facilityFile = 'CSDI_Parks_Data.csv';
                     break;
                 case 'shopping':
-                    facilityFile = 'CSDI Malls with Descriptions by New Town.csv';
+                    facilityFile = 'CSDI_Shopping_Malls_Data.csv';
                     break;
                 case 'leisure':
                 default:
-                    facilityFile = 'CSDI Leisure with Descriptions by New Town.csv';
+                    facilityFile = 'CSDI_Leisure_Data.csv';
                     break;
             }
-            transportFile = 'CSDI All Transport Data Combined.csv';
+            transportFile = 'CSDI_All_Transport_Data_Combined.csv';
 
             const facilityResponse = await fetch(facilityFile);
             const facilityData = await facilityResponse.text();
@@ -178,7 +187,7 @@
                                 source: `isochrone-${interval}`,
                                 paint: {
                                     'fill-color': colors[idx],
-                                    'fill-opacity': 0.3,
+                                    'fill-opacity': 0.4,
                                     'fill-outline-color': colors[idx]
                                 }
                             });
@@ -199,7 +208,7 @@
                         id: 'facilities',
                         type: 'circle',
                         source: 'facilities',
-                        paint: { 'circle-radius': 5, 'circle-color': '#007cbf' }
+                        paint: { 'circle-radius': 6, 'circle-color': '#007cbf' }
                     });
 
                     // Re-attach event handlers
@@ -216,7 +225,7 @@
                 const coordinates = e.features[0].geometry.coordinates; // [lon, lat]
                 const lat = coordinates[1];
                 const lon = coordinates[0];
-        
+
                 // Hide all existing isochrone layers and facilities layer
                 intervals.forEach(interval => {
                     if (map.getLayer(`isochrone-${interval}`)) {
@@ -226,7 +235,7 @@
                 if (map.getLayer('facilities')) {
                     map.setLayoutProperty('facilities', 'visibility', 'none');
                 }
-        
+
                 // Remove any previously hovered isochrone layers and transport markers
                 intervals.forEach(interval => {
                     if (map.getLayer(`hovered-isochrone-${interval}`)) {
@@ -250,7 +259,7 @@
                     map.removeLayer('hovered-facility');
                     map.removeSource('hovered-facility');
                 }
-        
+
                 // Fetch isochrones for the hovered facility
                 const hoveredIsochrones = await fetchIsochronesWithRetry(lat, lon, facility.name, 2);
                 if (hoveredIsochrones) {
@@ -271,7 +280,7 @@
                         }
                     });
                 }
-        
+
                 // Calculate accessible transport stations (using 15-minute isochrone)
                 const isochrone15 = hoveredIsochrones ? hoveredIsochrones.find(f => f.properties.contour === 15) : null;
                 let accessibleStations = [];
@@ -281,7 +290,7 @@
                         const pt = turf.point([parseFloat(station.Longitude), parseFloat(station.Latitude)]);
                         return turf.booleanPointInPolygon(pt, isochronePolygon);
                     });
-        
+
                     // Add transport station markers with separate layers by type
                     const transportMarkers = {
                         type: 'FeatureCollection',
@@ -291,9 +300,9 @@
                             properties: { name: station.Name, type: station.Type }
                         }))
                     };
-        
+
                     map.addSource('hovered-transport-stations', { type: 'geojson', data: transportMarkers });
-        
+
                     // Green minibus (green)
                     map.addLayer({
                         id: 'hovered-transport-stations-green',
@@ -306,7 +315,7 @@
                         },
                         filter: ['==', 'type', 'Green minibus']
                     }, 'facilities');
-        
+
                     // Bus and MTR Bus (red)
                     map.addLayer({
                         id: 'hovered-transport-stations-red',
@@ -319,7 +328,7 @@
                         },
                         filter: ['in', 'type', 'Bus', 'MTR Bus']
                     }, 'facilities');
-        
+
                     // MTR (blue)
                     map.addLayer({
                         id: 'hovered-transport-stations-blue',
@@ -334,7 +343,7 @@
                     }, 'facilities');
                 }
                 const stationCount = accessibleStations.length;
-        
+
                 // Re-add the hovered facility as a single marker
                 const hoveredFacility = {
                     type: 'FeatureCollection',
@@ -351,12 +360,12 @@
                     source: 'hovered-facility',
                     paint: { 'circle-radius': 6, 'circle-color': '#007cbf' }
                 });
-        
+
                 // Update info box
                 infoBox.style.display = 'block';
                 infoBox.innerHTML = `<h3>${facility.name}</h3><p>Rating: ${facility.rating}</p><p>Transport Stations (15 min walk): ${stationCount}</p><p>${facility.description}</p>`;
             });
-        
+
             map.on('mouseleave', 'facilities', () => {
                 map.getCanvas().style.cursor = '';
                 infoBox.style.display = 'none';
@@ -389,7 +398,7 @@
                     map.removeSource('hovered-transport-stations-blue');
                 }
             });
-        
+
             map.on('click', 'facilities', (e) => {
                 const name = e.features[0].properties.name;
                 new mapboxgl.Popup()
@@ -405,13 +414,23 @@
                 updateMapData();
             });
 
-            // Add legend
-            const legend = document.createElement('div');
-            legend.className = 'legend';
+            // Add transport legend
+            const transportLegend = document.createElement('div');
+            transportLegend.className = 'transport-legend';
+            transportLegend.innerHTML = `
+                <div><span class="transport-legend-color" style="background:#00FF00"></span>Green minibus</div>
+                <div><span class="transport-legend-color" style="background:#FF0000"></span>Bus / MTR Bus</div>
+                <div><span class="transport-legend-color" style="background:#0000FF"></span>MTR</div>
+            `;
+            map.getContainer().appendChild(transportLegend);
+
+            // Add isochrone legend
+            const isochroneLegend = document.createElement('div');
+            isochroneLegend.className = 'legend';
             intervals.forEach((interval, idx) => {
-                legend.innerHTML += `<div><span class="legend-color" style="background:${colors[idx]}"></span>${interval} minutes</div>`;
+                isochroneLegend.innerHTML += `<div><span class="legend-color" style="background:${colors[idx]}"></span>${interval} minutes</div>`;
             });
-            map.getContainer().appendChild(legend);
+            map.getContainer().appendChild(isochroneLegend);
         });
 
         async function fetchIsochronesWithRetry(lat, lon, name, maxRetries = 2) {
