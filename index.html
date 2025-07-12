@@ -216,7 +216,7 @@
                 const coordinates = e.features[0].geometry.coordinates; // [lon, lat]
                 const lat = coordinates[1];
                 const lon = coordinates[0];
-
+        
                 // Hide all existing isochrone layers and facilities layer
                 intervals.forEach(interval => {
                     if (map.getLayer(`isochrone-${interval}`)) {
@@ -226,7 +226,7 @@
                 if (map.getLayer('facilities')) {
                     map.setLayoutProperty('facilities', 'visibility', 'none');
                 }
-
+        
                 // Remove any previously hovered isochrone layers and transport markers
                 intervals.forEach(interval => {
                     if (map.getLayer(`hovered-isochrone-${interval}`)) {
@@ -234,15 +234,23 @@
                         map.removeSource(`hovered-isochrone-${interval}`);
                     }
                 });
-                if (map.getLayer('hovered-transport-stations')) {
-                    map.removeLayer('hovered-transport-stations');
-                    map.removeSource('hovered-transport-stations');
+                if (map.getLayer('hovered-transport-stations-green')) {
+                    map.removeLayer('hovered-transport-stations-green');
+                    map.removeSource('hovered-transport-stations-green');
+                }
+                if (map.getLayer('hovered-transport-stations-red')) {
+                    map.removeLayer('hovered-transport-stations-red');
+                    map.removeSource('hovered-transport-stations-red');
+                }
+                if (map.getLayer('hovered-transport-stations-blue')) {
+                    map.removeLayer('hovered-transport-stations-blue');
+                    map.removeSource('hovered-transport-stations-blue');
                 }
                 if (map.getLayer('hovered-facility')) {
                     map.removeLayer('hovered-facility');
                     map.removeSource('hovered-facility');
                 }
-
+        
                 // Fetch isochrones for the hovered facility
                 const hoveredIsochrones = await fetchIsochronesWithRetry(lat, lon, facility.name, 2);
                 if (hoveredIsochrones) {
@@ -256,14 +264,14 @@
                                 source: `hovered-isochrone-${interval}`,
                                 paint: {
                                     'fill-color': colors[idx],
-                                    'fill-opacity': 0.2,
+                                    'fill-opacity': 0.4,
                                     'fill-outline-color': colors[idx]
                                 }
                             }, 'facilities');
                         }
                     });
                 }
-
+        
                 // Calculate accessible transport stations (using 15-minute isochrone)
                 const isochrone15 = hoveredIsochrones ? hoveredIsochrones.find(f => f.properties.contour === 15) : null;
                 let accessibleStations = [];
@@ -273,8 +281,8 @@
                         const pt = turf.point([parseFloat(station.Longitude), parseFloat(station.Latitude)]);
                         return turf.booleanPointInPolygon(pt, isochronePolygon);
                     });
-
-                    // Add transport station markers
+        
+                    // Add transport station markers with separate layers by type
                     const transportMarkers = {
                         type: 'FeatureCollection',
                         features: accessibleStations.map(station => ({
@@ -283,21 +291,50 @@
                             properties: { name: station.Name, type: station.Type }
                         }))
                     };
-
+        
                     map.addSource('hovered-transport-stations', { type: 'geojson', data: transportMarkers });
+        
+                    // Green minibus (green)
                     map.addLayer({
-                        id: 'hovered-transport-stations',
+                        id: 'hovered-transport-stations-green',
                         type: 'circle',
                         source: 'hovered-transport-stations',
                         paint: {
-                            'circle-radius': 3,
+                            'circle-radius': 5,
+                            'circle-color': '#00FF00',
+                            'circle-opacity': 0.8
+                        },
+                        filter: ['==', 'type', 'Green minibus']
+                    }, 'facilities');
+        
+                    // Bus and MTR Bus (red)
+                    map.addLayer({
+                        id: 'hovered-transport-stations-red',
+                        type: 'circle',
+                        source: 'hovered-transport-stations',
+                        paint: {
+                            'circle-radius': 5,
                             'circle-color': '#FF0000',
                             'circle-opacity': 0.8
-                        }
+                        },
+                        filter: ['in', 'type', 'Bus', 'MTR Bus']
+                    }, 'facilities');
+        
+                    // MTR (blue)
+                    map.addLayer({
+                        id: 'hovered-transport-stations-blue',
+                        type: 'circle',
+                        source: 'hovered-transport-stations',
+                        paint: {
+                            'circle-radius': 5,
+                            'circle-color': '#0000FF',
+                            'circle-opacity': 0.8
+                        },
+                        filter: ['==', 'type', 'MTR']
                     }, 'facilities');
                 }
                 const stationCount = accessibleStations.length;
-
+        
                 // Re-add the hovered facility as a single marker
                 const hoveredFacility = {
                     type: 'FeatureCollection',
@@ -314,12 +351,12 @@
                     source: 'hovered-facility',
                     paint: { 'circle-radius': 6, 'circle-color': '#007cbf' }
                 });
-
+        
                 // Update info box
                 infoBox.style.display = 'block';
                 infoBox.innerHTML = `<h3>${facility.name}</h3><p>Rating: ${facility.rating}</p><p>Transport Stations (15 min walk): ${stationCount}</p><p>${facility.description}</p>`;
             });
-
+        
             map.on('mouseleave', 'facilities', () => {
                 map.getCanvas().style.cursor = '';
                 infoBox.style.display = 'none';
@@ -339,12 +376,20 @@
                     map.removeLayer('hovered-facility');
                     map.removeSource('hovered-facility');
                 }
-                if (map.getLayer('hovered-transport-stations')) {
-                    map.removeLayer('hovered-transport-stations');
-                    map.removeSource('hovered-transport-stations');
+                if (map.getLayer('hovered-transport-stations-green')) {
+                    map.removeLayer('hovered-transport-stations-green');
+                    map.removeSource('hovered-transport-stations-green');
+                }
+                if (map.getLayer('hovered-transport-stations-red')) {
+                    map.removeLayer('hovered-transport-stations-red');
+                    map.removeSource('hovered-transport-stations-red');
+                }
+                if (map.getLayer('hovered-transport-stations-blue')) {
+                    map.removeLayer('hovered-transport-stations-blue');
+                    map.removeSource('hovered-transport-stations-blue');
                 }
             });
-
+        
             map.on('click', 'facilities', (e) => {
                 const name = e.features[0].properties.name;
                 new mapboxgl.Popup()
